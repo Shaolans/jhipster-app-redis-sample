@@ -1,5 +1,9 @@
 package com.mycompany.myapp.config;
 
+import com.github.dockerjava.api.command.CreateContainerCmd;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.*;
 import org.redisson.Redisson;
@@ -12,26 +16,28 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomi
 import org.hibernate.cache.jcache.ConfigSettings;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.cache.configuration.MutableConfiguration;
 import javax.cache.expiry.CreatedExpiryPolicy;
 import javax.cache.expiry.Duration;
 
 import io.github.jhipster.config.JHipsterProperties;
+import org.testcontainers.containers.GenericContainer;
 
 @Configuration
 @EnableCaching
 public class CacheConfiguration {
 
-    private final javax.cache.configuration.Configuration<Object, Object> jcacheConfiguration;
-
-    public CacheConfiguration(JHipsterProperties jHipsterProperties) {
+    @Bean
+    @DependsOn({"testContainerRedis"})
+    public javax.cache.configuration.Configuration<Object, Object> jcacheConfiguration(JHipsterProperties jHipsterProperties) {
         MutableConfiguration<Object, Object> jcacheConfig = new MutableConfiguration<>();
         Config config = new Config();
         config.useSingleServer().setAddress(jHipsterProperties.getCache().getRedis().getServer());
         jcacheConfig.setStatisticsEnabled(true);
         jcacheConfig.setExpiryPolicyFactory(CreatedExpiryPolicy.factoryOf(new Duration(TimeUnit.SECONDS, jHipsterProperties.getCache().getRedis().getExpiration())));
-        jcacheConfiguration = RedissonConfiguration.fromInstance(Redisson.create(config), jcacheConfig);
+        return RedissonConfiguration.fromInstance(Redisson.create(config), jcacheConfig);
     }
 
 
@@ -41,23 +47,42 @@ public class CacheConfiguration {
     }
 
     @Bean
-    public JCacheManagerCustomizer cacheManagerCustomizer() {
+    public JCacheManagerCustomizer cacheManagerCustomizer(javax.cache.configuration.Configuration<Object, Object> jcacheConfiguration) {
         return cm -> {
-            createCache(cm, com.mycompany.myapp.repository.UserRepository.USERS_BY_LOGIN_CACHE);
-            createCache(cm, com.mycompany.myapp.repository.UserRepository.USERS_BY_EMAIL_CACHE);
-            createCache(cm, com.mycompany.myapp.domain.User.class.getName());
-            createCache(cm, com.mycompany.myapp.domain.Authority.class.getName());
-            createCache(cm, com.mycompany.myapp.domain.User.class.getName() + ".authorities");
-            createCache(cm, com.mycompany.myapp.domain.Project.class.getName());
+            createCache(cm, com.mycompany.myapp.repository.UserRepository.USERS_BY_LOGIN_CACHE, jcacheConfiguration);
+            createCache(cm, com.mycompany.myapp.repository.UserRepository.USERS_BY_EMAIL_CACHE, jcacheConfiguration);
+            createCache(cm, com.mycompany.myapp.domain.User.class.getName(), jcacheConfiguration);
+            createCache(cm, com.mycompany.myapp.domain.Authority.class.getName(), jcacheConfiguration);
+            createCache(cm, com.mycompany.myapp.domain.User.class.getName() + ".authorities", jcacheConfiguration);
+            createCache(cm, com.mycompany.myapp.domain.Project.class.getName(), jcacheConfiguration);
             // jhipster-needle-redis-add-entry
         };
     }
 
-    private void createCache(javax.cache.CacheManager cm, String cacheName) {
+    private void createCache(javax.cache.CacheManager cm, String cacheName, javax.cache.configuration.Configuration<Object, Object> jcacheConfiguration) {
         javax.cache.Cache<Object, Object> cache = cm.getCache(cacheName);
         if (cache != null) {
             cm.destroyCache(cacheName);
         }
         cm.createCache(cacheName, jcacheConfiguration);
+    }
+
+
+    @Bean(name = "testContainerRedis")
+    @Profile("default")
+    public GenericContainer testContainerRedis(JHipsterProperties jHipsterProperties) {
+        Consumer<CreateContainerCmd> cmd = e -> e.withPortBindings(new PortBinding(Ports.Binding.bindPort(6379), new ExposedPort(6379)));
+        GenericContainer redis =
+            new GenericContainer("redis:5.0.5")
+                .withExposedPorts(6379)
+                .withCreateContainerCmdModifier(cmd);
+        redis.start();
+        return redis;
+    }
+
+    @Bean(name = "testContainerRedis")
+    @Profile("!default")
+    public Object emptyTestContainerRedis() {
+        return null;
     }
 }

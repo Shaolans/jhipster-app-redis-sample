@@ -1,8 +1,14 @@
 package com.mycompany.myapp.config.timezone;
 
+import com.github.dockerjava.api.command.CreateContainerCmd;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports;
 import com.mycompany.myapp.JhipsterApp;
 import com.mycompany.myapp.repository.timezone.DateTimeWrapper;
 import com.mycompany.myapp.repository.timezone.DateTimeWrapperRepository;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,9 +16,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.containers.GenericContainer;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.function.Consumer;
 
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +30,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(classes = JhipsterApp.class)
 public class HibernateTimeZoneIT {
-
     @Autowired
     private DateTimeWrapperRepository dateTimeWrapperRepository;
     @Autowired
