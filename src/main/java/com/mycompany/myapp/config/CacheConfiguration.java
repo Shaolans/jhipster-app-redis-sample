@@ -1,9 +1,6 @@
 package com.mycompany.myapp.config;
 
-import com.github.dockerjava.api.command.CreateContainerCmd;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.Ports;
+
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.*;
 import org.redisson.Redisson;
@@ -16,14 +13,13 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomi
 import org.hibernate.cache.jcache.ConfigSettings;
 
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 import javax.cache.configuration.MutableConfiguration;
 import javax.cache.expiry.CreatedExpiryPolicy;
 import javax.cache.expiry.Duration;
 
 import io.github.jhipster.config.JHipsterProperties;
-import org.testcontainers.containers.GenericContainer;
+
 
 @Configuration
 @EnableCaching
@@ -67,21 +63,8 @@ public class CacheConfiguration {
         cm.createCache(cacheName, jcacheConfiguration);
     }
 
-
-    @Bean(name = "testContainerRedis")
-    @Profile("default")
-    public GenericContainer testContainerRedis(JHipsterProperties jHipsterProperties) {
-        Consumer<CreateContainerCmd> cmd = e -> e.withPortBindings(new PortBinding(Ports.Binding.bindPort(6379), new ExposedPort(6379)));
-        GenericContainer redis =
-            new GenericContainer("redis:5.0.5")
-                .withExposedPorts(6379)
-                .withCreateContainerCmdModifier(cmd);
-        redis.start();
-        return redis;
-    }
-
-    @Bean(name = "testContainerRedis")
     @Profile("!default")
+    @Bean(name = "testContainerRedis")
     public Object emptyTestContainerRedis() {
         return null;
     }
